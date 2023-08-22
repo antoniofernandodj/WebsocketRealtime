@@ -1,0 +1,102 @@
+<head>
+<script src="https://cdn.jsdelivr.net/npm/uuid@8.3.2/dist/umd/uuid.min.js"></script>
+</head>
+<body>
+
+<div id="divName">
+    <label>Digite o seu nome</label>
+  <div>
+    <input value="" id="inputNome">
+    <button id="btnEntrar">Entrar no chat</button>
+  </div>
+</div>
+
+
+<div id="divChat" style="display:none">
+  <textarea id="input"></textarea>
+  <button id="btnReset">Enviar</button>
+  <div id="cont">
+  </div>
+  </body>
+</div>
+
+<script>
+
+const MessageBox = (dataMsgContent, dataClientName) => {
+  return `
+    <strong style="margin-right: 5px">${dataClientName}</strong>
+    ${dataMsgContent}
+  `
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+
+  const divName = document.querySelector('#divName')
+  const divChat = document.querySelector('#divChat')
+  const container = document.querySelector('#cont')
+  const ws = new WebSocket('ws://localhost:8765')
+  const input = document.querySelector('#input')
+  const btnReset = document.querySelector('#btnReset')
+  const btnEntrar = document.querySelector('#btnEntrar')
+  
+  ws.onopen = () => {
+
+    var currentMessageUUID = uuid.v4();
+    var currentName;
+
+    btnEntrar.onclick = () => {
+      let inputName = document.getElementById('inputNome');
+      currentName = inputName.value;
+      divName.style.display = 'none';
+      divChat.style.display = 'block';
+    }
+      
+    btnReset.onclick = () => {
+      currentMessageUUID = uuid.v4();
+      input.value = ''
+    }
+
+    input.onkeydown = (event) => {
+      if (event.key === "Enter") {
+        currentMessageUUID = uuid.v4();
+        input.value = ''
+      }
+    }
+
+    input.addEventListener('keyup', () => {
+      let msg = JSON.stringify({
+        MsgUUID: currentMessageUUID,
+        MsgContent: input.value,
+        clientName: currentName
+      })
+      if (input.value == '\n') {
+        return
+      }
+      ws.send(msg)
+    })
+  
+    ws.onmessage = (payload) => {
+      let data = JSON.parse(JSON.parse(payload.data).data)
+      if (data.MsgContent == '\n') {
+        return
+      }
+
+      console.log({data: data})
+      let messageBoxes = container.querySelectorAll('div');
+      for (messageBox of messageBoxes) {
+        let messageBoxUUID = messageBox.getAttribute('uuid')
+        if (data.MsgUUID == messageBoxUUID) {
+          messageBox.innerHTML = MessageBox(data.MsgContent, data.clientName);
+          return
+        }
+      }
+
+      div = document.createElement('div')
+      div.setAttribute('uuid', data.MsgUUID)
+      div.innerHTML = MessageBox(data.MsgContent, data.clientName);
+      container.appendChild(div)
+    }
+  }
+
+})
+</script>
